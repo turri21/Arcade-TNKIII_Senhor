@@ -80,6 +80,13 @@ module TNKIIICore_Front_sync(
     //--- HM6116P-3 2Kx8 300ns SRAM x 4 ICs, only used 512bytes per IC ---
 
     //TNKIII only uses VA[10:0] 2Kbytes FRONT RAM space
+
+    //add one clock delay to VCKn
+    logic VCKn_reg;
+    always @(posedge clk) begin
+        VCKn_reg <= VCKn;
+    end
+
     SRAM_dual_sync #(.ADDR_WIDTH(9)) h2_byte0
     (
         .ADDR0({VA[10:2]}), 
@@ -90,7 +97,7 @@ module TNKIIICore_Front_sync(
         .Q0(Q0),
         .ADDR1({3'b000,FH[4:0],H3}), 
         .clk1(clk), 
-        .cen1(~VCKn), 
+        .cen1(~VCKn_reg), 
         .we1(1'b0), 
         .DATA1(8'hff),
         .Q1(Dreg0)
@@ -106,7 +113,7 @@ module TNKIIICore_Front_sync(
         .Q0(Q1),
         .ADDR1({3'b000,FH[4:0],H3}), 
         .clk1(clk), 
-        .cen1(~VCKn), 
+        .cen1(~VCKn_reg), 
         .we1(1'b0), 
         .DATA1(8'hff),
         .Q1(Dreg1)
@@ -123,7 +130,7 @@ module TNKIIICore_Front_sync(
         .Q0(Q2),
         .ADDR1({3'b000,FH[4:0],H3}), 
         .clk1(clk), 
-        .cen1(~VCKn), 
+        .cen1(~VCKn_reg), 
         .we1(1'b0), 
         .DATA1(8'hff),
         .Q1(Dreg2)
@@ -139,16 +146,16 @@ module TNKIIICore_Front_sync(
         .Q0(Q3),
         .ADDR1({3'b000,FH[4:0],H3}), 
         .clk1(clk), 
-        .cen1(~VCKn), 
+        .cen1(~VCKn_reg), 
         .we1(1'b0), 
         .DATA1(8'hff),
         .Q1(Dreg3)
     );
 
-    assign D0_out = (!VOE) ? Q0 : 8'hff;
-    assign D1_out = (!VOE) ? Q1 : 8'hff;
-    assign D2_out = (!VOE) ? Q2 : 8'hff;
-    assign D3_out = (!VOE) ? Q3 : 8'hff; 
+    assign D0_out = (!VOE && !F1B0) ? Q0 : 8'hff;
+    assign D1_out = (!VOE && !F1B1) ? Q1 : 8'hff;
+    assign D2_out = (!VOE && !F1B2) ? Q2 : 8'hff;
+    assign D3_out = (!VOE && !F1B3) ? Q3 : 8'hff; 
 
     assign VD_out = ( (!VRD && F2_EN) ? D0_out : (
                       (!VRD && F3_EN) ? D1_out : (
@@ -156,26 +163,34 @@ module TNKIIICore_Front_sync(
                       (!VRD && F5_EN) ? D3_out : 8'hff
                     ))));
 
+
+    //add one clock delay to VLK
+    logic VLK_reg;
+    always @(posedge clk) begin
+        VLK_reg <= VLK;
+    end
+
     logic [7:0] G2_Q;
     //Sprite X offset
-    ttl_74273_sync g2(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK), .D(Dreg0), .Q(G2_Q));
+    ttl_74273_sync g2(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK_reg), .D(Dreg0), .Q(G2_Q));
     logic [7:0] Tile_num;
     //Sprite Tile Number
-    ttl_74273_sync g3(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK), .D(Dreg1), .Q(Tile_num));
+    ttl_74273_sync g3(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK_reg), .D(Dreg1), .Q(Tile_num));
     logic [7:0] Y_offset;
     //Sprite Y offset
-    ttl_74273_sync g4(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK), .D(Dreg2), .Q(Y_offset));
+    ttl_74273_sync g4(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK_reg), .D(Dreg2), .Q(Y_offset));
     logic [7:0] G5_Q;
     //Sprite attributes
-    ttl_74273_sync g5(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK), .D(Dreg3), .Q(G5_Q));
+    ttl_74273_sync g5(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(VLK_reg), .D(Dreg3), .Q(G5_Q));
     
-    logic [3:0] Spr_color_bank;
-    logic X_offset_MSB;
-    logic Spr_bank; //TNKIII only 512 tiles
-    logic Spr_XFlip; //TNKIII
-    logic Y_offset_MSB;
+    (*preserve*) logic [3:0] Spr_color_bank;
+    (*preserve*) logic X_offset_MSB;
+    (*preserve*) logic Spr_bank; //TNKIII only 512 tiles
+    (*preserve*) logic Spr_XFlip; //TNKIII
+    (*preserve*) logic Y_offset_MSB;
 
     assign  Spr_XFlip = G5_Q[5];
+    //X_offset is converted to a2 complement valued (inverted and then added one, Cin of less significant 4bit full adder)
     assign  X_offset_MSB = ~G5_Q[4];
 
 
@@ -203,41 +218,63 @@ module TNKIIICore_Front_sync(
     logic [7:0] G7_Q;
     ttl_74273_sync g7(.RESETn(VIDEO_RSTn), .CLRn(1'b1), .Clk(clk), .Cen(FCK), .D(Tile_num), .Q(G7_Q));
 
-    logic e7_D;
-    logic e5_cout;
-    logic [3:0] e5_sum;
+    //logic e7_D;
+    logic e5_cout /* synthesis keep */;
+    logic [3:0] e5_sum /* synthesis keep */;
 
-    assign e7_D = FV[8] ^ X_offset_MSB;
+    // assign e7_D = FV[8] ^ X_offset_MSB;
 
-    logic e7_C;
-    assign e7_C = e7_D ^ e5_cout;
+    logic e7_C /* synthesis keep */;
 
-    logic e4_cout;
+    (*preserve*) logic X8OFFr, FV8r, E5COUTr;
+    (*preserve*) logic [3:0] E5SUMr, E4SUMr;
+
+    always @(posedge clk) begin
+        X8OFFr  <= X_offset_MSB;
+        FV8r    <= FV[8];
+        E5COUTr <= e5_cout;
+        E5SUMr  <= e5_sum;
+        E4SUMr  <= e4_sum;
+    end
+
+    //assign e7_C = FV[8] ^ X_offset_MSB ^ e5_cout;
+    assign e7_C = FV8r ^ X8OFFr ^ E5COUTr;
+
+    logic e4_cout /* synthesis keep */;
     ttl_74283_nodly e5 (.A(FV[7:4]), .B(X_offset[7:4]), .C_in(e4_cout),  .Sum(e5_sum), .C_out(e5_cout));
 
-    logic [3:0] e4_sum;
+    logic [3:0] e4_sum /* synthesis keep */;
     ttl_74283_nodly e4 (.A(FV[3:0]), .B(X_offset[3:0]), .C_in(1'b1), .Sum(e4_sum), .C_out(e4_cout));
 
+
     //Sprite X flip, TNKIII
-    logic [3:0] e4_flip;
+    logic [3:0] e4_flip /* synthesis keep */;
+    // generate
+    //     for(i=0; i<4; i++) begin : x_flip_gen
+    //         assign e4_flip[i] = e4_sum[i] ^ Spr_XFlip;
+    //     end
+    // endgenerate
     generate
         for(i=0; i<4; i++) begin : x_flip_gen
-            assign e4_flip[i] = e4_sum[i] ^ Spr_XFlip;
+            assign e4_flip[i] = E4SUMr[i] ^ Spr_XFlip;
         end
     endgenerate
 
-    logic e6_B;
-    assign e6_B = &e5_sum;
-    logic e8_C;
-    ////////////Hack: insert one clock cycle delay to e7_C,e6_B
-    reg e7_Cr, e6_Br;
-    always @(posedge clk) begin
-        e7_Cr    <= e7_C;
-        e6_Br    <= e6_B;
-    end
-    assign e8_C = ~(e7_Cr & e6_Br);
+    logic e6_B /* synthesis keep */;
+    // assign e6_B = &e5_sum;
+    assign e6_B = &E5SUMr;
 
-    logic [4:0] E8_Q;
+    logic e8_C /* synthesis keep */;
+    ////////////Hack: insert one clock cycle delay to e7_C,e6_B
+    // reg e7_Cr, e6_Br;
+    // always @(posedge clk) begin
+    //     e7_Cr    <= e7_C;
+    //     e6_Br    <= e6_B;
+    // end
+    // assign e8_C = ~(e7_Cr & e6_Br);
+    assign e8_C = ~(e7_C & e6_B);
+
+    (*preserve*) logic [4:0] E8_Q;
     logic E8_dummy;
 
     ttl_74174_sync E8

@@ -270,32 +270,32 @@ wire [10:0] ps2_key;
 wire [15:0] joystick_0, joystick_1;
 
 //SNAC joysticks
-wire [1:0] SNAC_dev = status[20:19];
-wire         JOY_CLK, JOY_LOAD;
-wire         JOY_DATA  = (SNAC_dev == 2'd1) ? USER_IN[5] : '1;
+// wire [1:0] SNAC_dev = status[20:19];
+// wire         JOY_CLK, JOY_LOAD;
+// wire         JOY_DATA  = (SNAC_dev == 2'd1) ? USER_IN[5] : '1;
 
-always_comb begin
-	USER_OUT    = 8'hFF; 
+// always_comb begin
+// 	USER_OUT    = 8'hFF; 
 
-	if ((SNAC_dev == 2'd1) || (SNAC_dev == 2'd2)) begin
-		USER_OUT[0] = JOY_LOAD;
-		USER_OUT[1] = JOY_CLK;
-	end 
-end
+// 	if ((SNAC_dev == 2'd1) || (SNAC_dev == 2'd2)) begin
+// 		USER_OUT[0] = JOY_LOAD;
+// 		USER_OUT[1] = JOY_CLK;
+// 	end 
+// end
 
-wire [15:0] JOY_DB1 = (SNAC_dev == 2'd1) ? JOYDB15_1 : 16'd0;
-wire [15:0] JOY_DB2 = (SNAC_dev == 2'd2) ? JOYDB15_2 : 16'd0;
+// wire [15:0] JOY_DB1 = (SNAC_dev == 2'd1) ? JOYDB15_1 : 16'd0;
+// wire [15:0] JOY_DB2 = (SNAC_dev == 2'd2) ? JOYDB15_2 : 16'd0;
 
-wire [15:0] JOYDB15_1,JOYDB15_2;
-joy_db15 joy_db15
-(
-  .clk       ( clk_53p6  ), //53.6MHz
-  .JOY_CLK   ( JOY_CLK   ),
-  .JOY_DATA  ( JOY_DATA  ),
-  .JOY_LOAD  ( JOY_LOAD  ),
-  .joystick1 ( JOYDB15_1 ),
-  .joystick2 ( JOYDB15_2 )	  
-);
+// wire [15:0] JOYDB15_1,JOYDB15_2;
+// joy_db15 joy_db15
+// (
+//   .clk       ( clk_53p6  ), //53.6MHz
+//   .JOY_CLK   ( JOY_CLK   ),
+//   .JOY_DATA  ( JOY_DATA  ),
+//   .JOY_LOAD  ( JOY_LOAD  ),
+//   .joystick1 ( JOYDB15_1 ),
+//   .joystick2 ( JOYDB15_2 )	  
+// );
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
@@ -525,12 +525,12 @@ wire m_rot_left2, m_rot_right2;
 	assign m_pause2    =  joystick_1[11]; //active high
 
 //Rotary controls based on https://github.com/MiSTer-devel/Arcade-Jackal_MiSTer
-reg [23:0] rotary_div = 24'd0;
+reg [22:0] rotary_div = 23'd0;
 reg [3:0] rotary1 = 4'd11;
 reg [3:0] rotary2 = 4'h00;
 wire rotary_en = !rotary_div;
 always_ff @(posedge clk_53p6) begin
-	rotary_div <= rotary_div + 24'd1;
+	rotary_div <= rotary_div + 23'd1;
 	if(rotary_en) begin
 		if(m_rot_left1) begin
 			if(rotary1 != 4'd11)
