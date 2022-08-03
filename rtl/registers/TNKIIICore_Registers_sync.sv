@@ -1,4 +1,4 @@
-//TNKIIICore_Registers_sync.sv
+    //TNKIIICore_Registers_sync.sv
 //Author: @RndMnkIII
 //Date: 25/05/2022
 `default_nettype none

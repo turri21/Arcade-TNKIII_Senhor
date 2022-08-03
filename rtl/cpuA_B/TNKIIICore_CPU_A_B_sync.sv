@@ -129,6 +129,7 @@ module TNKIIICore_CPU_A_B_sync
 
     //T80pa CLK x4 real CPU clock
         T80pa z80_E5 (
+        //tv80pa z80_E5 (
         .RESET_n(reset_n), //RESETn
         .CLK    (clk),
         .CEN_p  (Cen_p & ~pause_cpu), //active high
@@ -305,7 +306,8 @@ module TNKIIICore_CPU_A_B_sync
     logic  [7:0] cpuB_Dout;
 
     //T80pa CLK x4 real CPU clock
-        T80pa z80_E1 (
+    T80pa z80_E1 (
+    //tv80pa z80_E1 (
         .RESET_n(reset_n), //RESETn
         .CLK    (clk),
         .CEN_p  (Cen_p & ~pause_cpu), //active high

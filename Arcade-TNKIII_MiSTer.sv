@@ -229,7 +229,9 @@ localparam CONF_STR = {
 	"P2O[18],Front Layer,On,Off;",
 	"P2-;",
 	"P3,SNAC;",
-	"P3O[20:19],Type,None,DB15_1P,DB15_2P,--;",
+	"P3-;",
+	"P3O[21:20],DB15 Devices,Off,OnlyP1,OnlyP2,P1&P2;",
+	"P3O[23:22],Native LS-30 Adapter,Off,OnlyP1,OnlyP2,P1&P2;",
 	"P3-;",
 	"DIP;",
 	"-;",
@@ -270,32 +272,49 @@ wire [10:0] ps2_key;
 wire [15:0] joystick_0, joystick_1;
 
 //SNAC joysticks
-// wire [1:0] SNAC_dev = status[20:19];
-// wire         JOY_CLK, JOY_LOAD;
-// wire         JOY_DATA  = (SNAC_dev == 2'd1) ? USER_IN[5] : '1;
+wire [1:0] SNAC_dev /* synthesis keep */;	
+wire [1:0] SNAC_LS30 /* synthesis keep */;
+assign SNAC_dev =  status[21:20];
+assign SNAC_LS30 = status[23:22];
+wire         JOY_CLK, JOY_LOAD;
+wire         JOY_DATA  = USER_IN[5];
 
-// always_comb begin
-// 	USER_OUT    = 8'hFF; 
+always_comb begin
+	USER_OUT[0] = JOY_LOAD;
+	USER_OUT[1] = JOY_CLK;
+	USER_OUT[2] = 1'b1;
+	USER_OUT[3] = 1'b1;
+	USER_OUT[4] = 1'b1;
+	USER_OUT[5] = 1'b1;
+	USER_OUT[6] = 1'b1;
+end
 
-// 	if ((SNAC_dev == 2'd1) || (SNAC_dev == 2'd2)) begin
-// 		USER_OUT[0] = JOY_LOAD;
-// 		USER_OUT[1] = JOY_CLK;
-// 	end 
-// end
+wire [15:0] JOYDB15_1,JOYDB15_2;
+joy_db15 joy_db15
+(
+  .clk       ( clk_53p6  ), //53.6MHz
+  .JOY_CLK   ( JOY_CLK   ),
+  .JOY_DATA  ( JOY_DATA  ),
+  .JOY_LOAD  ( JOY_LOAD  ),
+  .joystick1 ( JOYDB15_1 ),
+  .joystick2 ( JOYDB15_2 )	  
+);
 
-// wire [15:0] JOY_DB1 = (SNAC_dev == 2'd1) ? JOYDB15_1 : 16'd0;
-// wire [15:0] JOY_DB2 = (SNAC_dev == 2'd2) ? JOYDB15_2 : 16'd0;
+wire [15:0] JOY_DB1;
+wire [15:0] JOY_DB2;
+always_comb begin
+	if ((SNAC_dev[0] == 1'b1) || (SNAC_LS30[0] == 1'b1)) begin
+		JOY_DB1 = JOYDB15_1;
+	end else begin
+		JOY_DB1 = 16'hff;
+	end
 
-// wire [15:0] JOYDB15_1,JOYDB15_2;
-// joy_db15 joy_db15
-// (
-//   .clk       ( clk_53p6  ), //53.6MHz
-//   .JOY_CLK   ( JOY_CLK   ),
-//   .JOY_DATA  ( JOY_DATA  ),
-//   .JOY_LOAD  ( JOY_LOAD  ),
-//   .joystick1 ( JOYDB15_1 ),
-//   .joystick2 ( JOYDB15_2 )	  
-// );
+	if ((SNAC_dev[1] == 1'b1) || (SNAC_LS30[1] == 1'b1)) begin
+		JOY_DB2 = JOYDB15_2;
+	end else begin
+		JOY_DB2 = 16'hff;
+	end
+end
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
@@ -493,36 +512,38 @@ wire m_coin2;
 wire m_pause2; //active high
 wire m_rot_left2, m_rot_right2;
 
+
+
 //custom_joy1:13 UP,12 DOWN,11 RIGHT,10 LEFT,9 H,8 G,7 F,6 E,5 D,4 C,3 B,2 A,1 START1,0 COIN
 //db15:        //    11 L, 10 S, 9 F, 8 E, 7 D, 6 C, 5 B, 4 A, 3 U, 2 D, 1 L, 0 R
 //    10 9876543210
 //----LS FEDCBAUDLR
-
-	assign m_up1       = ~joystick_0[3];
-	assign m_down1     = ~joystick_0[2];
-	assign m_left1     = ~joystick_0[1];
-	assign m_right1    = ~joystick_0[0];
-	assign m_shot1     = ~joystick_0[4];  
-	assign m_missile1  = ~joystick_0[5];  
-	assign m_start1    = ~joystick_0[6];  
-	assign m_coin1     = ~joystick_0[7];  
-	assign m_rot_left1 =  joystick_0[8]; 
-	assign m_rot_right1=  joystick_0[9]; 
-	assign m_service1  = ~joystick_0[10];
-	assign m_pause1    =  joystick_0[11]; //active high
+//JOY_DB1 = (SNAC_dev == 2'd1)
+	assign m_up1       = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[3]  : ~joystick_0[3];
+	assign m_down1     = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[2]  : ~joystick_0[2];
+	assign m_left1     = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[1]  : ~joystick_0[1];
+	assign m_right1    = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[0]  : ~joystick_0[0];
+	assign m_shot1     = (SNAC_dev[0]) ? ~JOY_DB1[5]  : (SNAC_LS30[0] ? ~JOY_DB1[4] : ~joystick_0[4]); //DB15 (NeoGeo): B , LS30 (Custom) A
+	assign m_missile1  = (SNAC_dev[0]) ? ~JOY_DB1[6]  : (SNAC_LS30[0] ? ~JOY_DB1[5] : ~joystick_0[5]); //DB15 (NeoGeo): C , LS30 (Custom) B
+	assign m_start1    = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[10] : ~joystick_0[6]; //DB15 (NeoGeo): Start
+	assign m_coin1     = (SNAC_dev[0] || SNAC_LS30[0]) ? ~JOY_DB1[11] : ~joystick_0[7]; //DB15 (NeoGeo): Select 
+	assign m_rot_left1 = (SNAC_dev[0] || SNAC_LS30[0]) ?  JOY_DB1[4]  :  joystick_0[8]; //DB15 (NeoGeo): A, LS30 (Custom) not used
+	assign m_rot_right1= (SNAC_dev[0] || SNAC_LS30[0]) ?  JOY_DB1[7]  :  joystick_0[9]; //DB15 (NeoGeo): D LS30 (Custom) not used
+	assign m_service1  = (SNAC_dev[0] || SNAC_LS30[0]) ?  ~(JOY_DB1[5] & JOY_DB1[11]) : ~joystick_0[10]; //DB15 (NeoGeo): Select+B
+	assign m_pause1    = (SNAC_dev[0] || SNAC_LS30[0]) ?   (JOY_DB1[4] & JOY_DB1[11]) :  joystick_0[11]; //DB15 (NeoGeo): Select+A
 	
-	assign m_up2       = ~joystick_1[3];
-	assign m_down2     = ~joystick_1[2];
-	assign m_left2     = ~joystick_1[1];
-	assign m_right2    = ~joystick_1[0];
-	assign m_shot2     = ~joystick_1[4];  
-	assign m_missile2  = ~joystick_1[5];  
-	assign m_start2    = ~joystick_1[6];  
-	assign m_coin2     = ~joystick_1[7];  
-	assign m_rot_left2 =  joystick_1[8]; 
-	assign m_rot_right2=  joystick_1[9]; 
-	assign m_service2  = ~joystick_1[10];
-	assign m_pause2    =  joystick_1[11]; //active high
+	assign m_up2       = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[3]  : ~joystick_1[3];
+	assign m_down2     = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[2]  : ~joystick_1[2];
+	assign m_left2     = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[1]  : ~joystick_1[1];
+	assign m_right2    = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[0]  : ~joystick_1[0];
+	assign m_shot2     = (SNAC_dev[1]) ? ~JOY_DB2[5]  : (SNAC_LS30[1] ? ~JOY_DB2[4] : ~joystick_1[4]); //DB15 (NeoGeo): B , LS30 (Custom) A
+	assign m_missile2  = (SNAC_dev[1]) ? ~JOY_DB2[6]  : (SNAC_LS30[1] ? ~JOY_DB2[5] : ~joystick_1[5]); //DB15 (NeoGeo): C , LS30 (Custom) B
+	assign m_start2    = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[10] : ~joystick_1[6]; //DB15 (NeoGeo): Start
+	assign m_coin2     = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[11] : ~joystick_1[7]; //DB15 (NeoGeo): Select 
+	assign m_rot_left2 = (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[4]  :  joystick_1[8]; //DB15 (NeoGeo): A, LS30 (Custom) not used
+	assign m_rot_right2= (SNAC_dev[1] || SNAC_LS30[1]) ? ~JOY_DB2[7]  :  joystick_1[9]; //DB15 (NeoGeo): D LS30 (Custom) not used
+	assign m_service2  = (SNAC_dev[1] || SNAC_LS30[1]) ?  ~(JOY_DB2[5] & JOY_DB2[11]) : ~joystick_1[10]; //DB15 (NeoGeo): Select+B
+	assign m_pause2    = (SNAC_dev[1] || SNAC_LS30[1]) ?   (JOY_DB2[4] & JOY_DB2[11]) :  joystick_1[11]; //DB15 (NeoGeo): Select+A
 
 //Rotary controls based on https://github.com/MiSTer-devel/Arcade-Jackal_MiSTer
 reg [22:0] rotary_div = 23'd0;
@@ -563,6 +584,35 @@ always_ff @(posedge clk_53p6) begin
 	end
 end
 
-assign PLAYER1 = {2'b11,m_up1,m_down1,m_right1,m_left1,m_service1,1'b1,rotary1,m_missile1,m_shot1,m_start1,m_coin1};
-assign PLAYER2 = {2'b11,m_up2,m_down2,m_right2,m_left2,m_service2,1'b1,rotary2,m_missile2,m_shot2,m_start2,m_coin2};
+
+//LS-30 Custom SNAC controller
+logic [3:0] rot1_ls30 = 4'd11;
+logic [3:0] rot2_ls30 = 4'd11;
+
+logic [3:0] last_port1 /* synthesis preserve */;
+logic [3:0] last_port2 /* synthesis preserve */;
+logic [3:0] port1;
+logic [3:0] port2;
+logic [1:0] wait_read = 1'b1;
+
+assign port1 = {JOY_DB1[9],JOY_DB1[8],JOY_DB1[7],JOY_DB1[6]}; //buttons FEDC have the LS30 encoded rotating data
+assign port2 = {JOY_DB2[9],JOY_DB2[8],JOY_DB2[7],JOY_DB2[6]}; //buttons FEDC have the LS30 encoded rotating data
+
+ls30rot_decoder dec1 (.clk(clk_53p6), .wait_data(wait_read), .curr_data(port1), .last_data(last_port1), .pos(rot1_ls30));
+ls30rot_decoder dec2 (.clk(clk_53p6), .wait_data(wait_read), .curr_data(port2), .last_data(last_port2), .pos(rot2_ls30));
+
+always_ff @(posedge clk_53p6) begin
+	last_port1 <= port1;
+	last_port2 <= port2;
+
+	if (wait_read) wait_read <= 1'b0;
+end
+
+
+wire [3:0] rot1, rot2;
+assign rot1 = SNAC_LS30[0] ? rot1_ls30 : rotary1;
+assign rot2 = SNAC_LS30[1] ? rot2_ls30 : rotary2;
+
+assign PLAYER1 = {2'b11,m_up1,m_down1,m_right1,m_left1,m_service1,1'b1,rot1,m_missile1,m_shot1,m_start1,m_coin1};
+assign PLAYER2 = {2'b11,m_up2,m_down2,m_right2,m_left2,m_service2,1'b1,rot2,m_missile2,m_shot2,m_start2,m_coin2};
 endmodule

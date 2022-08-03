@@ -70,7 +70,8 @@ module TNKIIICore_Sound_sync
     end
 
     //T80pa CLK x2 real CPU clock
-        T80pa z80_g2 (
+    T80pa z80_g2 (
+    //tv80pa z80_g2 (
         .RESET_n(reset_n),
         .CLK    (clk),
         .CEN_p  (CEN_p & ~pause_cpu), //active high
