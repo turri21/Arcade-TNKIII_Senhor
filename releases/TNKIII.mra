@@ -75,5 +75,5 @@
 		<part>01</part>
 	</rom>
 	
-<buttons default="A,B,Start,C,L,R,X,Y,Z" names="PUSH1,PUSH2,Start1,Coin,Rotate Left,Rotate Right,Service,Pause"></buttons>
+<buttons default="A,B,Start,C,L,R,X,Y" names="PUSH1,PUSH2,Start1,Coin,Rotate Left,Rotate Right,Service,Pause"></buttons>
 </misterromdescription>
