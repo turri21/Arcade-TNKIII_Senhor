@@ -588,13 +588,14 @@ wire [1:0] rot_speed =status[30:29];
 logic rotary_en;
 
 always_comb begin
-	if (USE_GRS_SJOY) rotary_en = !rotary_div[21:0];
+	if (USE_GRS_SJOY) rotary_en = !rotary_div[20:0];
 	else begin
 		case(rot_speed)
 			2'b00: rotary_en = !rotary_div[22:0]; //Normal
 			2'b01: rotary_en = !rotary_div;       //Slow
-			2'b10: rotary_en = !rotary_div[21:0]; //Fast
-			2'b11: rotary_en = !rotary_div[20:0]; //Very Fast
+			2'b10: rotary_en = !rotary_div[21:0]; //Fast 
+			2'b11: rotary_en = !rotary_div[20:0]; //Very Fast //2.097.152
+			                                      //Ultra fast 1.048.576 2^20
 		endcase
 	end
 end
