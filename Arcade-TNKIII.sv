@@ -234,7 +234,9 @@ localparam CONF_STR = {
 	"P3-;",
 	"P3O[21:20],DB15 Devices,Off,OnlyP1,OnlyP2,P1&P2;",
 	"P3O[23:22],Native LS-30 Adapter,Off,OnlyP1,OnlyP2,P1&P2;",
+	"P3O[24],Use GRS Super JoyStick (Keystroke Mode), Off, On",
 	"P3-;",
+	"H1O[30:29],Rotary Speed,Normal,Slow,Fast,Very Fast;",
 	"DIP;",
 	"-;",
 	"T[0],Reset;",
@@ -276,8 +278,10 @@ wire [15:0] joystick_0, joystick_1;
 //SNAC joysticks
 wire [1:0] SNAC_dev /* synthesis keep */;	
 wire [1:0] SNAC_LS30 /* synthesis keep */;
+wire USE_GRS_SJOY;
 assign SNAC_dev =  status[21:20];
 assign SNAC_LS30 = status[23:22];
+assign USE_GRS_SJOY = status[24];
 wire         JOY_CLK, JOY_LOAD;
 wire         JOY_DATA  = USER_IN[5];
 
@@ -485,7 +489,36 @@ end
 logic [7:0] dsw1, dsw2;
 assign dsw1 = sw[0];
 assign dsw2 = sw[1];
-//Keyboard
+
+///////////////////         Keyboard           //////////////////
+reg btn_left_1     = 0 /* synthesis preserve */;
+reg btn_right_1    = 0 /* synthesis preserve */;
+reg btn_left_2     = 0 /* synthesis preserve */;
+reg btn_right_2    = 0 /* synthesis preserve */;
+
+wire pressed = ps2_key[9];
+wire [7:0] code = ps2_key[7:0];
+always @(posedge clk_53p6) begin
+	reg old_state;
+	old_state <= ps2_key[10];
+	if(old_state != ps2_key[10]) begin
+
+		if(USE_GRS_SJOY) begin
+			case(code)
+				'h6B: btn_left_1    <= pressed; // left
+				'h74: btn_right_1   <= pressed; // right
+				'h21: btn_left_2    <= pressed; // C as left
+				'h2A: btn_right_2   <= pressed; // V as right
+			endcase
+		end else begin
+				btn_left_1    <= 1'b0; // left
+				btn_right_1   <= 1'b0; // right
+				btn_left_2    <= 1'b0; // C as left
+				btn_right_2   <= 1'b0; // V as right
+		end
+	end
+end
+
 
 //Joysticks
 //Player 1
@@ -550,18 +583,29 @@ wire m_rot_left2, m_rot_right2;
 //Rotary controls based on https://github.com/MiSTer-devel/Arcade-Jackal_MiSTer
 reg [22:0] rotary_div = 23'd0;
 reg [3:0] rotary1 = 4'd11;
-reg [3:0] rotary2 = 4'h00;
-wire rotary_en = !rotary_div;
+reg [3:0] rotary2 = 4'd11;
+wire [1:0] rot_speed =status[30:29];
+logic rotary_en;
+
+always_comb begin
+	case(rot_speed)
+		2'b00: rotary_en = !rotary_div[22:0]; //Normal
+		2'b01: rotary_en = !rotary_div;       //Slow
+		2'b10: rotary_en = !rotary_div[21:0]; //Fast
+		2'b11: rotary_en = !rotary_div[20:0]; //Very Fast
+	endcase
+end
+
 always_ff @(posedge clk_53p6) begin
 	rotary_div <= rotary_div + 23'd1;
-	if(rotary_en) begin
-		if(m_rot_left1) begin
+	if(rotary_en || USE_GRS_SJOY) begin
+		if(m_rot_left1 || btn_left_1) begin
 			if(rotary1 != 4'd11)
 				rotary1 <= rotary1 + 4'd1;
 			else
 				rotary1 <= 4'd0;
 		end
-		else if(m_rot_right1) begin
+		else if(m_rot_right1 || btn_right_1) begin
 			if(rotary1 != 4'd0)
 				rotary1 <= rotary1 - 4'd1;
 			else
@@ -569,13 +613,13 @@ always_ff @(posedge clk_53p6) begin
 		end
 		else
 			rotary1 <= rotary1;
-		if(m_rot_left2) begin
+		if(m_rot_left2 || btn_left_2) begin
 			if(rotary2 != 4'd11)
 				rotary2 <= rotary2 + 4'd1;
 			else
 				rotary2 <= 4'd0;
 		end
-		else if(m_rot_right2) begin
+		else if(m_rot_right2 || btn_right_2) begin
 			if(rotary2 != 4'd0)
 				rotary2 <= rotary2 - 4'd1;
 			else
