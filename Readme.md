@@ -1,3 +1,8 @@
+-=(TNKIII_Senhor notes)=-
+
+Tested: Working Video 720p, 1080p & Sound.
+
+___
 # SNK T.N.K. III:
 
 * Update [15/06/24] Added GRS Superjoystick support for rotative joystick control. See notes about configuration.
